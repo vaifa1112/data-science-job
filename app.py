@@ -3,9 +3,7 @@ import pandas as pd
 import pickle
 import plotly.express as px
 
-# =====================================
 # PAGE CONFIG
-# =====================================
 
 st.set_page_config(
     page_title="Job Classification Dashboard",
@@ -18,13 +16,9 @@ st.markdown(
     "Dashboard Analisis dan Prediksi Kategori Lowongan Kerja"
 )
 
-# =====================================
 # LOAD DATA
-# =====================================
 
 df = pd.read_csv("B4.csv")
-
-# DETEKSI KOLOM KATEGORI
 
 if "final_category" in df.columns:
     category_col = "final_category"
@@ -43,10 +37,7 @@ else:
     )
     st.stop()
 
-# =====================================
-# KPI
-# =====================================
-
+#KPI 
 col1, col2, col3 = st.columns(3)
 
 with col1:
@@ -79,10 +70,6 @@ with col3:
 
 st.divider()
 
-# =====================================
-# FILTER
-# =====================================
-
 st.subheader("Filter Data")
 
 kategori = st.multiselect(
@@ -105,10 +92,7 @@ else:
 
     filtered_df = df.copy()
 
-# =====================================
 # DATA TABLE
-# =====================================
-
 st.subheader("Data Lowongan Kerja")
 
 st.dataframe(
@@ -116,9 +100,7 @@ st.dataframe(
     use_container_width=True
 )
 
-# =====================================
 # DISTRIBUSI KATEGORI
-# =====================================
 
 st.subheader(
     "Distribusi Kategori Pekerjaan"
@@ -148,9 +130,7 @@ st.plotly_chart(
     use_container_width=True
 )
 
-# =====================================
 # PIE CHART
-# =====================================
 
 fig_pie = px.pie(
     kategori_count,
@@ -164,9 +144,7 @@ st.plotly_chart(
     use_container_width=True
 )
 
-# =====================================
 # TOP SKILL
-# =====================================
 
 st.subheader("Top Skill")
 
@@ -214,9 +192,7 @@ if "job_skill" in filtered_df.columns:
             use_container_width=True
         )
 
-# =====================================
-# LOAD MODEL
-# =====================================
+#LOAD MODEL
 
 model = pickle.load(
     open(
@@ -232,9 +208,7 @@ vectorizer = pickle.load(
     )
 )
 
-# =====================================
-# PREDIKSI
-# =====================================
+#PREDIKSI
 
 st.divider()
 
@@ -294,9 +268,7 @@ if st.button("Prediksi"):
             f"Kategori Prediksi: {prediction}"
         )
 
-# =====================================
 # FOOTER
-# =====================================
 
 st.markdown("---")
 
