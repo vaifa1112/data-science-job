@@ -1,65 +1,277 @@
 import streamlit as st
+import pandas as pd
 import pickle
-import numpy as np
+import plotly.express as px
 
-# Judul aplikasi
-st.title("Aplikasi Prediksi Status Performa Mahasiswa")
+# PAGE CONFIG
 
-import streamlit as st
+st.set_page_config(
+    page_title="Job Classification Dashboard",
+    page_icon="📊",
+    layout="wide"
+)
 
-# Input fitur-fitur
-Curricular_units_1st_sem_enrolled = st.number_input("Jumlah SKS yang Didaftarkan Mahasiswa pada Semester 1", min_value=0.0, max_value=26.0, value=0.0)
-Curricular_units_1st_sem_approved = st.number_input("Jumlah SKS yang Lulus Mahasiswa pada Semester 1", min_value=0.0, max_value=40.0, value=0.0) 
-Curricular_units_1st_sem_grade = st.number_input("Nilai Semester 1", min_value=0.0, max_value=4.0, value=0.0)
+st.title("Job Classification Dashboard")
+st.markdown(
+    "Dashboard Analisis dan Prediksi Kategori Lowongan Kerja"
+)
 
-Curricular_units_2nd_sem_enrolled = st.number_input("Jumlah SKS yang Didaftarkan Mahasiswa pada Semester 2", min_value=0.0, max_value=26.0, value=0.0)
-Curricular_units_2nd_sem_approved = st.number_input("Jumlah SKS yang Lulus Mahasiswa pada Semester 2", min_value=0.0, max_value=40.0, value=0.0)
-Curricular_units_2nd_sem_grade = st.number_input("Nilai Semester 2", min_value=0.0, max_value=4.0, value=0.0)
+# LOAD DATA
 
-# 1 Yes 0 No
-Tuition_fees_up_to_date = st.radio("Pelunasan Uang Pendidikan (Iya (1); Tidak (0))", ("1", "0"))
-# 1 Yes 0 No
-Scholarship_holder = st.radio("Penerima Beasiswa (Iya (1); Tidak (0))", ("1", "0"))
-Admission_grade = st.number_input("Nilai Penerimaan", min_value=0.0, max_value=200.0, value=0.0)
-Displaced = st.radio("Apakah Mahasiswa Orang Terlantar? (Iya (1); Tidak (0))", ("1", "0"))
+df = pd.read_csv("B4.csv")
 
+if "final_category" in df.columns:
+    category_col = "final_category"
 
-# Data dalam bentuk list
-data = [
-    [
-        Curricular_units_2nd_sem_approved,
-        Curricular_units_2nd_sem_grade,
-        Curricular_units_1st_sem_approved,
-        Curricular_units_1st_sem_grade,
-        Tuition_fees_up_to_date,
-        Scholarship_holder,
-        Curricular_units_2nd_sem_enrolled,
-        Curricular_units_1st_sem_enrolled,
-        Admission_grade,
-        Displaced
+elif "label" in df.columns:
+    category_col = "label"
+
+else:
+    st.error(
+        f"""
+        Kolom kategori tidak ditemukan.
+
+        Kolom yang tersedia:
+        {df.columns.tolist()}
+        """
+    )
+    st.stop()
+
+#KPI 
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric(
+        "Total Lowongan",
+        len(df)
+    )
+
+with col2:
+    st.metric(
+        "Jumlah Kategori",
+        df[category_col].nunique()
+    )
+
+with col3:
+
+    if "job_type" in df.columns:
+
+        st.metric(
+            "Jenis Pekerjaan",
+            df["job_type"].nunique()
+        )
+
+    else:
+
+        st.metric(
+            "Jenis Pekerjaan",
+            "-"
+        )
+
+st.divider()
+
+st.subheader("Filter Data")
+
+kategori = st.multiselect(
+    "Pilih Kategori",
+    sorted(
+        df[category_col]
+        .dropna()
+        .unique()
+    )
+)
+
+if kategori:
+
+    filtered_df = df[
+        df[category_col]
+        .isin(kategori)
     ]
+
+else:
+
+    filtered_df = df.copy()
+
+# DATA TABLE
+st.subheader("Data Lowongan Kerja")
+
+st.dataframe(
+    filtered_df,
+    use_container_width=True
+)
+
+# DISTRIBUSI KATEGORI
+
+st.subheader(
+    "Distribusi Kategori Pekerjaan"
+)
+
+kategori_count = (
+    filtered_df[category_col]
+    .value_counts()
+    .reset_index()
+)
+
+kategori_count.columns = [
+    "Kategori",
+    "Jumlah"
 ]
 
-# Load model dan skaler yang telah disimpan sebelumnya
-scaler = pickle.load(open('scaler.pkl', 'rb'))
-best_model = pickle.load(open('model_rf.pkl', 'rb'))
+fig_bar = px.bar(
+    kategori_count,
+    x="Kategori",
+    y="Jumlah",
+    text_auto=True,
+    title="Jumlah Lowongan per Kategori"
+)
 
-# Ketika tombol "Prediksi" ditekan
+st.plotly_chart(
+    fig_bar,
+    use_container_width=True
+)
+
+# PIE CHART
+
+fig_pie = px.pie(
+    kategori_count,
+    names="Kategori",
+    values="Jumlah",
+    title="Persentase Kategori Pekerjaan"
+)
+
+st.plotly_chart(
+    fig_pie,
+    use_container_width=True
+)
+
+# TOP SKILL
+
+st.subheader("Top Skill")
+
+if "job_skill" in filtered_df.columns:
+
+    skills_text = ", ".join(
+        filtered_df["job_skill"]
+        .astype(str)
+        .tolist()
+    )
+
+    skill_list = []
+
+    for item in skills_text.split(","):
+
+        item = item.strip()
+
+        if item:
+            skill_list.append(item)
+
+    if len(skill_list) > 0:
+
+        skill_df = (
+            pd.Series(skill_list)
+            .value_counts()
+            .head(10)
+            .reset_index()
+        )
+
+        skill_df.columns = [
+            "Skill",
+            "Jumlah"
+        ]
+
+        fig_skill = px.bar(
+            skill_df,
+            x="Skill",
+            y="Jumlah",
+            text_auto=True,
+            title="Top 10 Skill"
+        )
+
+        st.plotly_chart(
+            fig_skill,
+            use_container_width=True
+        )
+
+#LOAD MODEL
+
+model = pickle.load(
+    open(
+        "B4_model.pkl",
+        "rb"
+    )
+)
+
+vectorizer = pickle.load(
+    open(
+        "B4_vectorizer.pkl",
+        "rb"
+    )
+)
+
+#PREDIKSI
+
+st.divider()
+
+st.subheader(
+    "Prediksi Kategori Pekerjaan"
+)
+
+job_title = st.text_input(
+    "Job Title",
+    placeholder="Contoh: Data Analyst"
+)
+
+job_skill = st.text_area(
+    "Skill",
+    placeholder="Contoh: SQL, Python, Tableau"
+)
+
 if st.button("Prediksi"):
-    # Standardisasi data
-    data_scaled = scaler.transform(data)
 
-    # Prediksi hasil Status
-    hasil_prediksi = best_model.predict(data_scaled)
-    hasil_prediksi = int(hasil_prediksi)
+    if (
+        job_title.strip() == ""
+        and
+        job_skill.strip() == ""
+    ):
 
-    # Mapping hasil prediksi ke label yang sesuai
-    if hasil_prediksi == 0:
-        status = "Dropout"
-    elif hasil_prediksi == 1:
-        status = "Enrolled"
+        st.warning(
+            "Masukkan Job Title atau Skill terlebih dahulu."
+        )
+
     else:
-        status = "Graduate"
 
-    # Menampilkan hasil prediksi
-    st.write(f"Hasil Prediksi Status: {status}")
+        text_input = (
+            str(job_title)
+            + " "
+            + str(job_skill)
+        )
+
+        vector = vectorizer.transform(
+            [text_input]
+        )
+
+        prediction = model.predict(
+            vector
+        )[0]
+
+        valid_categories = (
+            df[category_col]
+            .dropna()
+            .unique()
+            .tolist()
+        )
+
+        if prediction not in valid_categories:
+            prediction = "general_role"
+
+        st.success(
+            f"Kategori Prediksi: {prediction}"
+        )
+
+# FOOTER
+
+st.markdown("---")
+
+st.caption(
+    "Dashboard Machine Learning Klasifikasi Lowongan Kerja menggunakan TF-IDF dan LinearSVC"
+)
